@@ -1,0 +1,31 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compileOnSave": false,
+  "files": [],
+  "references": [
+    {
+      "path": "./apps/auth_workspace-e2e"
+    },
+    {
+      "path": "./apps/auth_workspace"
+    },
+    {
+      "path": "./apps/api_gateway-e2e"
+    },
+    {
+      "path": "./apps/api_gateway"
+    },
+    {
+      "path": "./apps/business_workSpace-e2e"
+    },
+    {
+      "path": "./apps/business_workSpace"
+    },
+    {
+      "path": "./apps/product_workspace-e2e"
+    },
+    {
+      "path": "./apps/product_workspace"
+    }
+  ]
+}
