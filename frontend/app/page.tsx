@@ -41,14 +41,11 @@ function HeroSection() {
     ["Empowering", "Startup"],
     ["Fostering", "Growth"]
   ];
-  const baseDelay = 0.5;
+  const baseDelay = 0.1;
   let wordIndex = 0;
 
-  // Animate the whole hero text on 50% view
-  const [ref, controls] = useAnimateOnInView(0.5);
-
   return (
-    <div className='h-[80vh] sm:h-[100vh] relative'>
+    <div className='h-[100vh] relative'>
       <Image
         src="/image/heroTree.jpg"
         alt="Tree Logo"
@@ -58,23 +55,19 @@ function HeroSection() {
         priority
       />
       <div className="absolute inset-0 bg-gradient-to-r from-black/90 to-black/20" />
-      <div
-        ref={ref}
-        className='relative z-20 font-bold text-white h-full flex justify-center flex-col px-4 sm:px-10 md:px-20 lg:px-32 py-10 sm:text-4xl md:text-7xl text-3xl'
-      >
+      <div className='relative z-20 font-bold text-white h-full flex justify-center flex-col p-30 text-7xl'>
         {/* Animate each word with framer-motion */}
-        <div className='w-auto max-w-full'>
+        <div className='w-40'>
           {lines.map((line, i) => (
-            <h1 key={i} className="flex flex-wrap gap-4">
+            <h1 key={i} className="flex gap-4">
               {line.map((word) => {
                 const delay = baseDelay * wordIndex;
                 wordIndex++;
                 return (
                   <motion.div
                     key={word}
-                    variants={fadeUpVariant}
-                    initial="hidden"
-                    animate={controls}
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
                     transition={{ duration: 0.6, delay }}
                   >
                     {word}
@@ -83,6 +76,9 @@ function HeroSection() {
               })}
             </h1>
           ))}
+          {/* <div className='flex w-96 justify-center mt-5'>
+            <Button size='lg'>Browse Products</Button>
+          </div> */}
         </div>
       </div>
     </div>
@@ -132,7 +128,7 @@ function FeaturedCategory() {
       <h1 className='text-2xl sm:text-3xl font-bold mb-6 sm:mb-10 text-center'>
         Browse Our Top Categories
       </h1>
-      <div className='grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 justify-center'>
+      <div className='grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 gap-4 justify-center'>
         {categories.map((category, idx) => (
           <motion.div
             key={category.name}
@@ -143,7 +139,7 @@ function FeaturedCategory() {
             className='w-full flex justify-center'
           >
             <Card
-              className="h-36 sm:h-44 w-full max-w-[200px] overflow-hidden relative flex items-end flex-shrink-0 border-none shadow-md"
+              className="h-36 sm:h-44 w-full overflow-hidden relative flex items-end flex-shrink-0 border-none shadow-md"
               style={{
                 backgroundImage: `url(${category.image})`,
                 backgroundSize: 'cover',
@@ -206,6 +202,22 @@ function TopStartups() {
   // Animate the section on 50% view
   const [ref, controls] = useAnimateOnInView(0.5);
 
+  // Correct fadeUpWithDelay to be a valid Variants object for framer-motion
+  // We'll use a function to generate the transition delay per item
+  const getFadeUpVariant = (delay: number) => ({
+    hidden: { opacity: 0, y: 30 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        delay,
+        type: "spring",
+        stiffness: 60,
+        damping: 18,
+      },
+    },
+  });
+
   return (
     <motion.div
       ref={ref}
@@ -215,17 +227,14 @@ function TopStartups() {
     >
       <h1 className="text-2xl sm:text-3xl font-bold mb-6 sm:mb-8">Top Startups</h1>
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-        {startups.map((startup, idx) => (
+        {startups.map((startup, index) => (
           <motion.div
-            key={idx}
-            variants={fadeUpVariant}
+            key={index}
+            variants={getFadeUpVariant(0.15 + 0.12 * index)}
             initial="hidden"
             animate={controls}
-            transition={{ delay: 0.1 * idx }}
           >
-            <Card
-              className="flex items-center bg-gray-200/40 border-none rounded-xl p-2"
-            >
+            <Card className="flex items-center bg-gray-200/40 border-none rounded-xl p-2">
               <CardContent className="flex items-center gap-3 py-2 px-3 w-full">
                 <Avatar className="h-10 w-10 sm:h-12 sm:w-12">
                   <AvatarImage src={startup.avatar} alt={startup.name} />

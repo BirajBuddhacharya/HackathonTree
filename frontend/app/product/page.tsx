@@ -3,23 +3,11 @@ import NavBar from "@/components/AppComponents/NavBar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Filter, Search, ChevronDown, X } from "lucide-react";
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { ShoppingCart, Star, ShoppingBag } from "lucide-react";
 import Link from 'next/link'
-
-// Import Recharts for the graph
-import {
-    LineChart,
-    Line,
-    XAxis,
-    YAxis,
-    CartesianGrid,
-    Tooltip,
-    Legend,
-    ResponsiveContainer,
-    BarChart,
-    Bar,
-} from 'recharts';
+// Add framer-motion
+import { motion } from "framer-motion";
 
 const categories = [
     "AI",
@@ -38,89 +26,6 @@ const sortOptions = [
     "Price: Low to High",
     "Price: High to Low",
 ];
-
-function HeaderActions() {
-    const [search, setSearch] = useState("");
-    const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-    const [sortBy, setSortBy] = useState(sortOptions[0]);
-    const [showSort, setShowSort] = useState(false);
-
-    const toggleCategory = (cat: string) => {
-        setSelectedCategories((prev) =>
-            prev.includes(cat)
-                ? prev.filter((c) => c !== cat)
-                : [...prev, cat]
-        );
-    };
-
-    return (
-        <div className="flex flex-col w-full gap-4 mb-6 mt-5">
-            {/* Search Bar and Actions */}
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full">
-                <div className="relative w-full sm:max-w-xs">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
-                    <Input
-                        className="pl-10 pr-4 py-3 rounded-lg w-full sm:w-80 md:w-96"
-                        placeholder="Search products..."
-                        value={search}
-                        onChange={e => setSearch(e.target.value)}
-                    />
-                </div>
-                <div className="flex gap-2 mt-2 sm:mt-0 sm:ml-auto">
-                    <Button variant="outline" className="flex gap-2">
-                        <Filter size={16} />
-                        <span className="hidden xs:inline">Filters</span>
-                    </Button>
-                    {/* Sort By */}
-                    <div className="relative">
-                        <Button
-                            variant="outline"
-                            className="flex items-center gap-2"
-                            onClick={() => setShowSort((s) => !s)}
-                        >
-                            <span className="hidden xs:inline">Sort by:</span> <span className="font-medium">{sortBy}</span>
-                            <ChevronDown size={16} />
-                        </Button>
-                        {showSort && (
-                            <div className="absolute right-0 mt-2 w-48 bg-white border rounded shadow z-10">
-                                {sortOptions.map(option => (
-                                    <button
-                                        key={option}
-                                        className={`w-full text-left px-4 py-2 hover:bg-gray-100 ${option === sortBy ? "bg-gray-100 font-semibold" : ""}`}
-                                        onClick={() => {
-                                            setSortBy(option);
-                                            setShowSort(false);
-                                        }}
-                                    >
-                                        {option}
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </div>
-            {/* Category Chips */}
-            <div className="flex flex-wrap gap-2 mt-2 md:mt-0">
-                {categories.map(cat => (
-                    <button
-                        key={cat}
-                        className={`px-3 py-1 rounded-full border text-sm flex items-center gap-1 transition ${selectedCategories.includes(cat)
-                            ? "bg-primary text-primary-foreground border-primary"
-                            : "bg-muted text-muted-foreground border-muted"
-                            }`}
-                        onClick={() => toggleCategory(cat)}
-                    >
-                        {cat}
-                        {selectedCategories.includes(cat) && (
-                            <X size={14} className="ml-1" />
-                        )}
-                    </button>
-                ))}
-            </div>
-        </div>
-    );
-}
 
 // Dummy product data for demonstration
 const products = [
@@ -341,18 +246,26 @@ function MasonryGrid({ children }: { children: React.ReactNode }) {
 }
 
 // ProductCard component for masonry layout
-function ProductCard({ product }: { product: typeof products[0] }) {
+// Accepts an optional index prop for animation delay
+function ProductCard({ product, index = 0 }: { product: typeof products[0], index?: number }) {
     const [hovered, setHovered] = useState(false);
 
     return (
         <Link href='/product/[slug]' as={`/product/${product.id}`} className="block">
-            <div
+            <motion.div
                 className="mb-6 break-inside-avoid rounded-xl overflow-hidden shadow-lg group transition-all bg-white"
                 onMouseEnter={() => setHovered(true)}
                 onMouseLeave={() => setHovered(false)}
                 style={{
                     display: "inline-block",
                     width: "100%",
+                }}
+                initial={{ opacity: 0, y: 40 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{
+                    duration: 0.5,
+                    ease: "easeOut",
+                    // Removed delay according to index
                 }}
             >
                 <div className="relative w-full">
@@ -418,42 +331,289 @@ function ProductCard({ product }: { product: typeof products[0] }) {
                         </div>
                     </div>
                 </div>
-            </div>
+            </motion.div>
         </Link>
     );
 }
 
-// Graph component using Recharts and dummy data
-function ProductsGraph() {
+// HeaderActions now receives and controls search, selectedCategories, sortBy, and their setters
+function HeaderActions({
+    search,
+    setSearch,
+    selectedCategories,
+    setSelectedCategories,
+    sortBy,
+    setSortBy,
+}: {
+    search: string;
+    setSearch: (s: string) => void;
+    selectedCategories: string[];
+    setSelectedCategories: (c: string[]) => void;
+    sortBy: string;
+    setSortBy: (s: string) => void;
+}) {
+    const [showSort, setShowSort] = useState(false);
+    const [showFilters, setShowFilters] = useState(false);
+    const sortRef = useRef<HTMLDivElement>(null);
+    const filterRef = useRef<HTMLDivElement>(null);
+
+    // Close sort dropdown on outside click
+    useEffect(() => {
+        function handleClick(e: MouseEvent) {
+            if (showSort && sortRef.current && !sortRef.current.contains(e.target as Node)) {
+                setShowSort(false);
+            }
+            if (showFilters && filterRef.current && !filterRef.current.contains(e.target as Node)) {
+                setShowFilters(false);
+            }
+        }
+        if (showSort || showFilters) {
+            document.addEventListener("mousedown", handleClick);
+        }
+        return () => document.removeEventListener("mousedown", handleClick);
+    }, [showSort, showFilters]);
+
+    const toggleCategory = (cat: string) => {
+        setSelectedCategories((prev) =>
+            prev.includes(cat)
+                ? prev.filter((c) => c !== cat)
+                : [...prev, cat]
+        );
+    };
+
+    const clearFilters = () => {
+        setSelectedCategories([]);
+    };
+
     return (
-        <div className="w-full my-8 bg-white rounded-lg shadow p-4">
-            <h2 className="text-lg font-semibold mb-4">Sales by Category (Dummy Data)</h2>
-            <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={graphData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="category" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="sales" fill="#8884d8" name="Sales" />
-                    <Bar dataKey="products" fill="#82ca9d" name="Products" />
-                </BarChart>
-            </ResponsiveContainer>
+        <div className="flex flex-col w-full gap-4 mb-6 mt-5">
+            {/* Search Bar and Actions */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full">
+                <div className="relative w-full sm:max-w-xs">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
+                    <Input
+                        className="pl-10 pr-4 py-3 rounded-lg w-full sm:w-80 md:w-96"
+                        placeholder="Search products..."
+                        value={search}
+                        onChange={e => setSearch(e.target.value)}
+                    />
+                </div>
+                <div className="flex gap-2 mt-2 sm:mt-0 sm:ml-auto">
+                    {/* Filters Button */}
+                    <div className="relative" ref={filterRef}>
+                        <Button
+                            variant="outline"
+                            className="flex gap-2"
+                            onClick={() => setShowFilters((f) => !f)}
+                        >
+                            <Filter size={16} />
+                            <span className="hidden xs:inline">Filters</span>
+                            {selectedCategories.length > 0 && (
+                                <span className="ml-1 bg-primary text-primary-foreground rounded-full px-2 text-xs">{selectedCategories.length}</span>
+                            )}
+                        </Button>
+                        {showFilters && (
+                            <div className="absolute right-0 mt-2 w-56 bg-white border rounded shadow z-20 p-4">
+                                <div className="mb-2 font-semibold text-sm">Categories</div>
+                                <div className="flex flex-wrap gap-2">
+                                    {categories.map(cat => (
+                                        <button
+                                            key={cat}
+                                            className={`px-3 py-1 rounded-full border text-sm flex items-center gap-1 transition ${selectedCategories.includes(cat)
+                                                ? "bg-primary text-primary-foreground border-primary"
+                                                : "bg-muted text-muted-foreground border-muted"
+                                                }`}
+                                            onClick={() => toggleCategory(cat)}
+                                            type="button"
+                                        >
+                                            {cat}
+                                            {selectedCategories.includes(cat) && (
+                                                <X size={14} className="ml-1" />
+                                            )}
+                                        </button>
+                                    ))}
+                                </div>
+                                <div className="flex justify-end mt-4 gap-2">
+                                    <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={clearFilters}
+                                        disabled={selectedCategories.length === 0}
+                                    >
+                                        Clear
+                                    </Button>
+                                    <Button
+                                        size="sm"
+                                        variant="default"
+                                        onClick={() => setShowFilters(false)}
+                                    >
+                                        Done
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                    {/* Sort By */}
+                    <div className="relative" ref={sortRef}>
+                        <Button
+                            variant="outline"
+                            className="flex items-center gap-2"
+                            onClick={() => setShowSort((s) => !s)}
+                        >
+                            <span className="hidden xs:inline">Sort by:</span> <span className="font-medium">{sortBy}</span>
+                            <ChevronDown size={16} />
+                        </Button>
+                        {showSort && (
+                            <div className="absolute right-0 mt-2 w-48 bg-white border rounded shadow z-10">
+                                {sortOptions.map(option => (
+                                    <button
+                                        key={option}
+                                        className={`w-full text-left px-4 py-2 hover:bg-gray-100 ${option === sortBy ? "bg-gray-100 font-semibold" : ""}`}
+                                        onClick={() => {
+                                            setSortBy(option);
+                                            setShowSort(false);
+                                        }}
+                                        type="button"
+                                    >
+                                        {option}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+            {/* Category Chips */}
+            <div className="flex flex-wrap gap-2 mt-2 md:mt-0">
+                {categories.map(cat => (
+                    <button
+                        key={cat}
+                        className={`px-3 py-1 rounded-full border text-sm flex items-center gap-1 transition ${selectedCategories.includes(cat)
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-muted text-muted-foreground border-muted"
+                            }`}
+                        onClick={() => toggleCategory(cat)}
+                        type="button"
+                    >
+                        {cat}
+                        {selectedCategories.includes(cat) && (
+                            <X size={14} className="ml-1" />
+                        )}
+                    </button>
+                ))}
+                {selectedCategories.length > 0 && (
+                    <Button
+                        size="sm"
+                        variant="ghost"
+                        className="ml-2"
+                        onClick={clearFilters}
+                    >
+                        Clear
+                    </Button>
+                )}
+            </div>
         </div>
     );
 }
 
+// Filtering and sorting logic
+function filterAndSortProducts({
+    products,
+    search,
+    selectedCategories,
+    sortBy,
+}: {
+    products: typeof products;
+    search: string;
+    selectedCategories: string[];
+    sortBy: string;
+}) {
+    let filtered = products;
+
+    // Filter by search
+    if (search.trim() !== "") {
+        const q = search.trim().toLowerCase();
+        filtered = filtered.filter(
+            p =>
+                p.title.toLowerCase().includes(q) ||
+                p.description.toLowerCase().includes(q)
+        );
+    }
+
+    // Filter by categories (if any selected)
+    if (selectedCategories.length > 0) {
+        // For demo, randomly assign categories to products based on id
+        const catMap: { [id: number]: string[] } = {};
+        for (const p of products) {
+            // For demo, assign 1-2 categories per product
+            const idx = (p.id - 1) % categories.length;
+            catMap[p.id] = [categories[idx]];
+            if (p.id % 3 === 0) catMap[p.id].push(categories[(idx + 1) % categories.length]);
+        }
+        filtered = filtered.filter(p =>
+            catMap[p.id].some(cat => selectedCategories.includes(cat))
+        );
+    }
+
+    // Sort
+    let sorted = [...filtered];
+    switch (sortBy) {
+        case "Newest":
+            sorted.sort((a, b) => b.id - a.id);
+            break;
+        case "Oldest":
+            sorted.sort((a, b) => a.id - b.id);
+            break;
+        case "Most Popular":
+            sorted.sort((a, b) => b.rating - a.rating);
+            break;
+        case "Price: Low to High":
+            sorted.sort((a, b) => a.price - b.price);
+            break;
+        case "Price: High to Low":
+            sorted.sort((a, b) => b.price - a.price);
+            break;
+        default:
+            break;
+    }
+    return sorted;
+}
+
+// Main page
 export default function ProductsPage() {
+    const [search, setSearch] = useState("");
+    const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+    const [sortBy, setSortBy] = useState(sortOptions[0]);
+
+    const filteredProducts = filterAndSortProducts({
+        products,
+        search,
+        selectedCategories,
+        sortBy,
+    });
+
     return (
         <div className="container mx-auto px-2 sm:px-4">
             <NavBar />
-            <HeaderActions />
+            <HeaderActions
+                search={search}
+                setSearch={setSearch}
+                selectedCategories={selectedCategories}
+                setSelectedCategories={setSelectedCategories}
+                sortBy={sortBy}
+                setSortBy={setSortBy}
+            />
             {/* Insert the graph here */}
-            <ProductsGraph />
             <MasonryGrid>
-                {products.map((product) => (
-                    <ProductCard key={product.id} product={product} />
-                ))}
+                {filteredProducts.length === 0 ? (
+                    <div className="col-span-full w-full text-center text-muted-foreground py-16 text-lg">
+                        No products found.
+                    </div>
+                ) : (
+                    filteredProducts.map((product, idx) => (
+                        <ProductCard key={product.id} product={product} index={idx} />
+                    ))
+                )}
             </MasonryGrid>
         </div>
     );

@@ -1,7 +1,9 @@
+'use client'
 import { Card, CardContent } from "@/components/ui/card";
-import { ReactNode } from "react";
+import { ReactNode, useMemo, useState } from "react";
 import { Table, TableCell, TableHead, TableHeader, TableBody, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { motion, AnimatePresence } from "framer-motion";
 
 // Stat Card Types and Components
 type OrderStatCardProps = {
@@ -20,15 +22,22 @@ function OrderStatCard({
   iconClassName = "",
 }: OrderStatCardProps) {
   return (
-    <Card className={`${cardClassName} rounded-xl border-none flex-1`}>
-      <CardContent className="flex items-center gap-4 py-3">
-        <span className={iconClassName}>{icon}</span>
-        <div>
-          <div className="text-gray-500 text-sm">{title}</div>
-          <div className="text-xl font-bold text-gray-900">{value}</div>
-        </div>
-      </CardContent>
-    </Card>
+    <motion.div
+      initial={{ opacity: 0, y: 30, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.5, type: "spring" }}
+      className="flex-1"
+    >
+      <Card className={`${cardClassName} rounded-xl border-none flex-1`}>
+        <CardContent className="flex items-center gap-4 py-3">
+          <span className={iconClassName}>{icon}</span>
+          <div>
+            <div className="text-gray-500 text-sm">{title}</div>
+            <div className="text-xl font-bold text-gray-900">{value}</div>
+          </div>
+        </CardContent>
+      </Card>
+    </motion.div>
   );
 }
 
@@ -86,7 +95,7 @@ function OrdersTodayIcon() {
 }
 
 // Orders Table Data and Component
-const orders = [
+const initialOrders = [
   {
     id: "#1001",
     customer: "Alice Johnson",
@@ -121,7 +130,16 @@ const orders = [
   },
 ];
 
-function OrdersTable() {
+// Helper to parse "Rs. 1,200" to 1200 (number)
+function parseAmount(amount: string) {
+  return Number(amount.replace(/[^\d]/g, ""));
+}
+
+type OrdersTableProps = {
+  orders: typeof initialOrders;
+};
+
+function OrdersTable({ orders }: OrdersTableProps) {
   return (
     <div className="w-full overflow-x-auto">
       <Table>
@@ -135,21 +153,30 @@ function OrdersTable() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {orders.map((order) => (
-            <TableRow key={order.id} className="align-middle [&>*]:align-middle !h-16">
-              <TableCell className="font-medium">{order.id}</TableCell>
-              <TableCell>{order.customer}</TableCell>
-              <TableCell>{order.date}</TableCell>
-              <TableCell>
-                <span
-                  className={`inline-block px-2 py-1 text-xs rounded bg-${order.statusColor}-100 text-${order.statusColor}-700`}
-                >
-                  {order.status}
-                </span>
-              </TableCell>
-              <TableCell className="text-right">{order.amount}</TableCell>
-            </TableRow>
-          ))}
+          <AnimatePresence>
+            {orders.map((order, idx) => (
+              <motion.tr
+                key={order.id}
+                className="align-middle [&>*]:align-middle !h-16"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 20 }}
+                transition={{ duration: 0.25, delay: idx * 0.05 }}
+              >
+                <TableCell className="font-medium">{order.id}</TableCell>
+                <TableCell>{order.customer}</TableCell>
+                <TableCell>{order.date}</TableCell>
+                <TableCell>
+                  <span
+                    className={`inline-block px-2 py-1 text-xs rounded bg-${order.statusColor}-100 text-${order.statusColor}-700`}
+                  >
+                    {order.status}
+                  </span>
+                </TableCell>
+                <TableCell className="text-right">{order.amount}</TableCell>
+              </motion.tr>
+            ))}
+          </AnimatePresence>
         </TableBody>
       </Table>
     </div>
@@ -157,11 +184,88 @@ function OrdersTable() {
 }
 
 export default function Order() {
+  const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState<string | undefined>(undefined);
+  const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
+
+  // Filtering and sorting logic
+  const filteredOrders = useMemo(() => {
+    let filtered = initialOrders;
+
+    // Filter by search (customer name or order id)
+    if (search.trim() !== "") {
+      const lower = search.trim().toLowerCase();
+      filtered = filtered.filter(
+        (order) =>
+          order.customer.toLowerCase().includes(lower) ||
+          order.id.toLowerCase().includes(lower)
+      );
+    }
+
+    // Filter by status
+    if (statusFilter) {
+      filtered = filtered.filter(
+        (order) => order.status.toLowerCase() === statusFilter
+      );
+    }
+
+    // Sort
+    if (sortBy) {
+      filtered = [...filtered].sort((a, b) => {
+        if (sortBy === "date") {
+          // Newest first
+          return b.date.localeCompare(a.date);
+        }
+        if (sortBy === "amount") {
+          // Highest amount first
+          return parseAmount(b.amount) - parseAmount(a.amount);
+        }
+        if (sortBy === "customer") {
+          return a.customer.localeCompare(b.customer);
+        }
+        return 0;
+      });
+    }
+
+    return filtered;
+  }, [search, sortBy, statusFilter]);
+
   return (
-    <div className="w-full min-h-[100vh] relative flex flex-col p-5 px-12">
-      <h1 className="text-3xl font-bold">Order Page</h1>
-      <p className="text-gray-400">Manage Your Orders</p>
-      <div className="flex flex-col md:flex-row gap-6 mt-8">
+    <motion.div
+      className="w-full min-h-[100vh] relative flex flex-col p-5 px-12"
+      initial={{ opacity: 0, y: 40 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, type: "spring" }}
+    >
+      <motion.h1
+        className="text-3xl font-bold"
+        initial={{ opacity: 0, x: -30 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.5, delay: 0.1 }}
+      >
+        Order Page
+      </motion.h1>
+      <motion.p
+        className="text-gray-400"
+        initial={{ opacity: 0, x: -30 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.5, delay: 0.2 }}
+      >
+        Manage Your Orders
+      </motion.p>
+      <motion.div
+        className="flex flex-col md:flex-row gap-6 mt-8"
+        initial="hidden"
+        animate="visible"
+        variants={{
+          hidden: {},
+          visible: {
+            transition: {
+              staggerChildren: 0.13,
+            },
+          },
+        }}
+      >
         <OrderStatCard
           title="Pending Orders"
           value={8}
@@ -183,22 +287,37 @@ export default function Order() {
           cardClassName="bg-pink-50"
           iconClassName="text-pink-500"
         />
-      </div>
+      </motion.div>
       {/* Top bar: Search and Filters */}
-      <div className="flex flex-col gap-6 mt-8">
+      <motion.div
+        className="flex flex-col gap-6 mt-8"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.3 }}
+      >
         <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
           {/* Search Bar */}
           <div className="flex-1">
-            <input
+            <motion.input
               type="text"
               placeholder="Search orders..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
               className="w-full px-4 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.4, delay: 0.4 }}
             />
           </div>
           {/* Filters */}
-          <div className="flex gap-3">
+          <motion.div
+            className="flex gap-3"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.4, delay: 0.5 }}
+          >
             {/* Filter Dropdown (shadcn Select) */}
-            <Select>
+            <Select value={sortBy} onValueChange={setSortBy}>
               <SelectTrigger className="w-[140px]">
                 <SelectValue placeholder="Sort By" />
               </SelectTrigger>
@@ -209,7 +328,7 @@ export default function Order() {
               </SelectContent>
             </Select>
             {/* Status Filter Dropdown (shadcn Select) */}
-            <Select>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-[140px]">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
@@ -220,11 +339,11 @@ export default function Order() {
                 <SelectItem value="cancelled">Cancelled</SelectItem>
               </SelectContent>
             </Select>
-          </div>
+          </motion.div>
         </div>
         {/* Orders Table */}
-        <OrdersTable />
-      </div>
-    </div>
+        <OrdersTable orders={filteredOrders} />
+      </motion.div>
+    </motion.div>
   );
 }
